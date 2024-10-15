@@ -129,5 +129,10 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-
-**/.terraform
+# terraform
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+terraform/*.tfvars.json
+terraform/.terraform/
+terraform/.terraform.lock.hcl
