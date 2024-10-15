@@ -3,15 +3,46 @@ resource "aws_s3_bucket" "data_bucket" {
   bucket = "charliewhyman-toronto-maps"
 }
 
+# Variables for source and output directories
+variable "lambda_src_dir" {
+  description = "Source directory for Lambda functions"
+  type        = string
+}
+
+variable "lambda_payload_dir" {
+  description = "Output directory for lambda payloads"
+  type        = string
+}
+
+# Data source to create a zip file for get_data lambda
+data "archive_file" "get_data_lambda_payload" {
+  type        = "zip"
+  source_dir = "${var.lambda_src_dir}/get_data"  # Adjust filename as necessary
+  output_path = "${var.lambda_payload_dir}/get_data_payload.zip"
+  excludes    = [
+    "venv",
+    "__pycache__"
+  ]
+}
+
+# Data source to create a zip file for s3_to_supabase lambda
+data "archive_file" "s3_to_supabase_lambda_payload" {
+  type        = "zip"
+  source_dir = "${var.lambda_src_dir}/s3_to_supabase"  # Adjust filename as necessary
+  output_path = "${var.lambda_payload_dir}/s3_to_supabase_payload.zip"
+  excludes    = [
+    "venv",
+    "__pycache__"
+  ]
+}
+
 # Create Lambda function to get data from API
 resource "aws_lambda_function" "get_data_lambda" {
-  filename         = "${path.module}/lambdas/get_data.py"   
+  filename         = data.archive_file.get_data_lambda_payload.output_path  # Use the zipped file output
   function_name    = "get_data"
   role             = aws_iam_role.lambda_exec_role.arn
-  handler          = "get_data.handler"                     # Entry point for the Lambda function
+  handler          = "get_data.handler"  # Adjust this according to your function's handler
   runtime          = "python3.12"
-  
-  source_code_hash = filebase64sha256("${path.module}/lambdas/get_data.py")  # Ensure Lambda updates when code changes
 
   environment {
     variables = {
@@ -22,13 +53,11 @@ resource "aws_lambda_function" "get_data_lambda" {
 
 # Create Lambda function to move data from S3 to Supabase
 resource "aws_lambda_function" "s3_to_supabase_lambda" {
-  filename         = "${path.module}/lambdas/s3_to_supabase.py"   
+  filename         = data.archive_file.s3_to_supabase_lambda_payload.output_path  # Use the zipped file output
   function_name    = "s3_to_supabase"
   role             = aws_iam_role.lambda_exec_role.arn
-  handler          = "s3_to_supabase.handler"                     # Entry point for the Lambda function
+  handler          = "s3_to_supabase.handler"  # Adjust this according to your function's handler
   runtime          = "python3.12"
-  
-  source_code_hash = filebase64sha256("${path.module}/lambdas/s3_to_supabase.py")  # Ensure Lambda updates when code changes
 
   environment {
     variables = {
