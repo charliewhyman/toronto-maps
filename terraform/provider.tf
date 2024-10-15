@@ -3,6 +3,5 @@ provider "aws" {
 }
 
 provider "supabase" {
-  api_url = "https://uzhcmbppmoghkkpdepub.supabase.co"
-  api_key = var.supabase_api_key
+  access_token = var.supabase_access_token
 }

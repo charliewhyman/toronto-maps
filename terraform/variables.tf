@@ -3,13 +3,8 @@ variable "toronto_api_url" {
   description = "The URL of the Toronto Open Data API"
 }
 
-variable "supabase_url" {
+variable "supabase_access_token" {
   type        = string
-  description = "Supabase API URL"
-}
-
-variable "supabase_key" {
-  type        = string
-  description = "Supabase API Key"
-  sensitive   = true
+  description = "Supabase Access Token"
+ 
 }

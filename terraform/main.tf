@@ -21,7 +21,7 @@ resource "aws_lambda_function" "get_data_lambda" {
 }
 
 # Create Lambda function to move data from S3 to Supabase
-resource "aws_lambda_function" "get_data_lambda" {
+resource "aws_lambda_function" "s3_to_supabase_lambda" {
   filename         = "${path.module}/lambdas/s3_to_supabase.py"   
   function_name    = "s3_to_supabase"
   role             = aws_iam_role.lambda_exec_role.arn
