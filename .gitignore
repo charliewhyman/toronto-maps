@@ -136,3 +136,6 @@ terraform/*.tfvars
 terraform/*.tfvars.json
 terraform/.terraform/
 terraform/.terraform.lock.hcl
+
+# backend
+/backend/lambdas/payloads/

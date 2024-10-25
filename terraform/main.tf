@@ -92,6 +92,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
       {
         Action = [
           "s3:GetObject",
+          "s3:PutObject",
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents"
