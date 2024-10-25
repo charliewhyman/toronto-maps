@@ -14,6 +14,7 @@ terraform {
 
 provider "aws" {
   region = "us-east-2"
+  profile = "toronto_maps_profile"
 }
 
 provider "supabase" {
