@@ -17,7 +17,7 @@ variable "lambda_payload_dir" {
 # Data source to create a zip file for get_data lambda
 data "archive_file" "get_data_lambda_payload" {
   type        = "zip"
-  source_dir = "${var.lambda_src_dir}/get_data"  # Adjust filename as necessary
+  source_dir = "${var.lambda_src_dir}/get_data" 
   output_path = "${var.lambda_payload_dir}/get_data_payload.zip"
   excludes    = [
     "venv",
@@ -36,19 +36,28 @@ data "archive_file" "s3_to_supabase_lambda_payload" {
   ]
 }
 
+resource "null_resource" "force_update" {
+  triggers = {
+    zip_file_md5 = filemd5(data.archive_file.get_data_lambda_payload.output_path)
+  }
+}
+
 # Create Lambda function to get data from API
 resource "aws_lambda_function" "get_data_lambda" {
   filename         = data.archive_file.get_data_lambda_payload.output_path  # Use the zipped file output
   function_name    = "get_data"
   role             = aws_iam_role.lambda_exec_role.arn
-  handler          = "get_data.handler"  # Adjust this according to your function's handler
+  handler          = "get_data.handler" 
   runtime          = "python3.12"
+  source_code_hash = "${data.archive_file.get_data_lambda_payload.output_base64sha256}"
+
 
   environment {
     variables = {
       S3_BUCKET = aws_s3_bucket.data_bucket.bucket
     }
   }
+ depends_on = [null_resource.force_update]
 }
 
 # Create Lambda function to move data from S3 to Supabase
@@ -56,7 +65,7 @@ resource "aws_lambda_function" "s3_to_supabase_lambda" {
   filename         = data.archive_file.s3_to_supabase_lambda_payload.output_path  # Use the zipped file output
   function_name    = "s3_to_supabase"
   role             = aws_iam_role.lambda_exec_role.arn
-  handler          = "s3_to_supabase.handler"  # Adjust this according to your function's handler
+  handler          = "s3_to_supabase.handler"  
   runtime          = "python3.12"
 
   environment {
@@ -64,7 +73,10 @@ resource "aws_lambda_function" "s3_to_supabase_lambda" {
       S3_BUCKET = aws_s3_bucket.data_bucket.bucket
     }
   }
+
+ depends_on = [null_resource.force_update]
 }
+
 
 # Create IAM role for Lambda function
 resource "aws_iam_role" "lambda_exec_role" {
