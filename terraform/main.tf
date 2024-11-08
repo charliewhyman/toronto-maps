@@ -83,6 +83,8 @@ resource "aws_lambda_function" "get_data_lambda" {
   environment {
     variables = {
       S3_BUCKET = aws_s3_bucket.data_bucket.bucket
+      SUPABASE_URL = var.supabase_access_token
+      TORONTO_API_URL = var.toronto_api_url
     }
   }
  depends_on = [null_resource.force_update]
