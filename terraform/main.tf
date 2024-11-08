@@ -42,6 +42,33 @@ resource "null_resource" "force_update" {
   }
 }
 
+# Create Lambda layer for Python requirements
+resource "null_resource" "pip_install" {
+  triggers = {
+    shell_hash = "${sha256(file("${var.lambda_src_dir}//requirements.txt"))}"
+  }
+
+  provisioner "local-exec" {
+    command = "python -m pip install -r ${var.lambda_src_dir}/requirements.txt -t ${var.lambda_src_dir}/layer/python"
+  }
+
+  
+}
+
+# zip the layer directory
+data "archive_file" "layer" {
+  type        = "zip"
+  source_dir  = "${var.lambda_src_dir}/layer"
+  output_path = "${var.lambda_src_dir}/layer.zip"
+  depends_on  = [null_resource.pip_install]
+}
+
+resource "aws_lambda_layer_version" "layer" {
+  layer_name          = "requirements-layer"
+  filename            = data.archive_file.layer.output_path
+  source_code_hash    = data.archive_file.layer.output_base64sha256
+}
+
 # Create Lambda function to get data from API
 resource "aws_lambda_function" "get_data_lambda" {
   filename         = data.archive_file.get_data_lambda_payload.output_path  # Use the zipped file output
@@ -50,6 +77,7 @@ resource "aws_lambda_function" "get_data_lambda" {
   handler          = "get_data.handler" 
   runtime          = "python3.12"
   source_code_hash = "${data.archive_file.get_data_lambda_payload.output_base64sha256}"
+  layers           = [aws_lambda_layer_version.layer.arn]
 
 
   environment {
@@ -67,6 +95,7 @@ resource "aws_lambda_function" "s3_to_supabase_lambda" {
   role             = aws_iam_role.lambda_exec_role.arn
   handler          = "s3_to_supabase.handler"  
   runtime          = "python3.12"
+  layers           = [aws_lambda_layer_version.layer.arn]
 
   environment {
     variables = {
@@ -105,6 +134,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action = [
           "s3:GetObject",
           "s3:PutObject",
+          "s3:ListBucket",
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents"
