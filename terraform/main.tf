@@ -78,7 +78,7 @@ resource "aws_lambda_function" "get_data_lambda" {
   runtime          = "python3.12"
   source_code_hash = "${data.archive_file.get_data_lambda_payload.output_base64sha256}"
   layers           = [aws_lambda_layer_version.layer.arn]
-
+  timeout       = 300  # Increase timeout
 
   environment {
     variables = {
@@ -96,6 +96,7 @@ resource "aws_lambda_function" "s3_to_supabase_lambda" {
   handler          = "s3_to_supabase.handler"  
   runtime          = "python3.12"
   layers           = [aws_lambda_layer_version.layer.arn]
+  timeout       = 300  # Increase timeout
 
   environment {
     variables = {
