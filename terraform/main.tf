@@ -116,3 +116,25 @@ resource "aws_iam_role_policy" "lambda_policy" {
     ]
   })
 }
+
+# Add EventBridge rule to run every Monday at 00:00 UTC
+resource "aws_cloudwatch_event_rule" "weekly_trigger" {
+  name                = "weekly-lambda-trigger"
+  description         = "Triggers Lambda every Monday at 00:00 UTC"
+  schedule_expression = "cron(0 0 ? * 2 *)"
+}
+
+# Set the get_data Lambda function as the target for the EventBridge rule
+resource "aws_cloudwatch_event_target" "trigger_lambda" {
+  rule      = aws_cloudwatch_event_rule.weekly_trigger.name
+  arn       = aws_lambda_function.get_data_lambda.arn
+}
+
+# Grant permission to EventBridge to invoke the Lambda function
+resource "aws_lambda_permission" "allow_eventbridge" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_data_lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.weekly_trigger.arn
+}
