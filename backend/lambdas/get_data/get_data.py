@@ -13,7 +13,7 @@ s3_folder = f"{ckan_id}/"
 # Check if csv exists in S3 based on resource ID
 def file_exists_in_s3(resource_id):
     try:
-        s3_key = f"{s3_folder}{resource_id}.parquet"
+        s3_key = f"{s3_folder}{resource_id}.csv"
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_key)
         return "Contents" in response
     except ClientError as e:
@@ -42,29 +42,21 @@ def handler(event, context):
         # Check if the resource is a CSV and new based on its ID
         if resource["format"].lower() == "csv" and not file_exists_in_s3(resource["id"]):
             file_url = resource["url"]
+            s3_key = f"{s3_folder}{resource['id']}.csv"
 
             try:
-                # Fetch the CSV file
-                response = requests.get(file_url)
-                response.raise_for_status()
-            
-                # Define the S3 key (path) for the file using resource ID
-                s3_key = f"{s3_folder}{resource['id']}.csv"
-                
-                # Upload directly to S3
-                s3_client.put_object(
-                    Bucket=s3_bucket,
-                    Key=s3_key,
-                    Body=response.content
-                )
-                
+                # Stream the CSV file directly to S3
+                with requests.get(file_url, stream=True) as response:
+                    response.raise_for_status()
+                    s3_client.upload_fileobj(response.raw, s3_bucket, s3_key)
+        
                 print(f"Uploaded {resource['name']} (ID: {resource['id']}) to s3://{s3_bucket}/{s3_key}")
 
             except requests.exceptions.RequestException as e:
                 print(f"Error fetching CSV from {file_url}: {e}")
                 continue
             except ClientError as e:
-                print(f"Error uploading Parquet file to S3: {e}")
+                print(f"Error uploading CSV file to S3: {e}")
                 continue
             except Exception as e:
                 print(f"Unexpected error during conversion or upload: {e}")
