@@ -15,7 +15,7 @@ def file_exists_in_s3(resource_id):
     response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_key)
     return "Contents" in response
 
-def lambda_handler(event, context):
+def handler(event, context):
     # Set URL and parameters for the API request
     package_url = f"{base_url}/api/3/action/package_show"
     params = {"id": ckan_id}

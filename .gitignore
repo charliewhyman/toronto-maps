@@ -139,3 +139,5 @@ terraform/.terraform.lock.hcl
 
 # backend
 /backend/lambdas/payloads/
+/backend/lambdas/layer/
+/backend/lambdas/layer.zip
