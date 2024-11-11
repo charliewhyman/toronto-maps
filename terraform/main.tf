@@ -78,12 +78,11 @@ resource "aws_lambda_function" "get_data_lambda" {
   runtime          = "python3.12"
   source_code_hash = "${data.archive_file.get_data_lambda_payload.output_base64sha256}"
   layers           = [aws_lambda_layer_version.layer.arn]
-  timeout       = 300  # Increase timeout
+  timeout          = 300  # Increase timeout
 
   environment {
     variables = {
       S3_BUCKET = aws_s3_bucket.data_bucket.bucket
-      SUPABASE_URL = var.supabase_access_token
       TORONTO_API_URL = var.toronto_api_url
     }
   }
@@ -97,16 +96,22 @@ resource "aws_lambda_function" "s3_to_supabase_lambda" {
   role             = aws_iam_role.lambda_exec_role.arn
   handler          = "s3_to_supabase.handler"  
   runtime          = "python3.12"
+  source_code_hash = "${data.archive_file.s3_to_supabase_lambda_payload.output_base64sha256}"
+
   layers           = [aws_lambda_layer_version.layer.arn]
-  timeout       = 300  # Increase timeout
+  timeout          = 300  # Increase timeout
 
   environment {
     variables = {
       S3_BUCKET = aws_s3_bucket.data_bucket.bucket
+      SUPABASE_URL = var.supabase_access_token
+      SUPABASE_ACCESS_TOKEN = var.supabase_access_token
+      SUPABASE_TABLE = var.supabase_table
+      TORONTO_API_URL = var.toronto_api_url
     }
   }
-
  depends_on = [null_resource.force_update]
+
 }
 
 
@@ -144,7 +149,10 @@ resource "aws_iam_role_policy" "lambda_policy" {
 
         ],
         Effect   = "Allow",
-        Resource = "*"
+        Resource = [
+          "arn:aws:s3:::${aws_s3_bucket.data_bucket.bucket}",
+          "arn:aws:s3:::${aws_s3_bucket.data_bucket.bucket}/*"
+        ]
       }
     ]
   })
