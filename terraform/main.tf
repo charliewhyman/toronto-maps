@@ -38,8 +38,14 @@ data "archive_file" "s3_to_supabase_lambda_payload" {
 
 resource "null_resource" "force_update" {
   triggers = {
-    zip_file_md5 = filemd5(data.archive_file.get_data_lambda_payload.output_path)
+    # Combine the MD5 hashes of both Lambda zips
+    zip_file_md5 = "${filemd5(data.archive_file.get_data_lambda_payload.output_path)}-${filemd5(data.archive_file.s3_to_supabase.output_path)}"
   }
+
+  depends_on = [
+    data.archive_file.get_data_lambda_payload,
+    data.archive_file.s3_to_supabase
+  ]
 }
 
 # Create Lambda layer for Python requirements
