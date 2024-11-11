@@ -39,12 +39,12 @@ data "archive_file" "s3_to_supabase_lambda_payload" {
 resource "null_resource" "force_update" {
   triggers = {
     # Combine the MD5 hashes of both Lambda zips
-    zip_file_md5 = "${filemd5(data.archive_file.get_data_lambda_payload.output_path)}-${filemd5(data.archive_file.s3_to_supabase.output_path)}"
+    zip_file_md5 = "${filemd5(data.archive_file.get_data_lambda_payload.output_path)}-${filemd5(data.archive_file.s3_to_supabase_lambda_payload.output_path)}"
   }
 
   depends_on = [
     data.archive_file.get_data_lambda_payload,
-    data.archive_file.s3_to_supabase
+    data.archive_file.s3_to_supabase_lambda_payload
   ]
 }
 
@@ -55,7 +55,7 @@ resource "null_resource" "pip_install" {
   }
 
   provisioner "local-exec" {
-    command = "python -m pip install -r ${var.lambda_src_dir}/requirements.txt -t ${var.lambda_src_dir}/layer/python"
+    command = "python -m pip install -r ${var.lambda_src_dir}/requirements.txt -t ${var.lambda_src_dir}/layer/python --platform manylinux2014_x86_64 --only-binary=:all: --implementation cp"
   }
 
   
@@ -104,13 +104,16 @@ resource "aws_lambda_function" "s3_to_supabase_lambda" {
   runtime          = "python3.12"
   source_code_hash = "${data.archive_file.s3_to_supabase_lambda_payload.output_base64sha256}"
 
-  layers           = [aws_lambda_layer_version.layer.arn]
+  layers           = [aws_lambda_layer_version.layer.arn,
+                      # Pandas layer https://aws-sdk-pandas.readthedocs.io/en/stable/layers.html
+                      "arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python312:14"
+                     ]
   timeout          = 300  # Increase timeout
 
   environment {
     variables = {
       S3_BUCKET = aws_s3_bucket.data_bucket.bucket
-      SUPABASE_URL = var.supabase_access_token
+      SUPABASE_URL = var.supabase_url
       SUPABASE_ACCESS_TOKEN = var.supabase_access_token
       SUPABASE_TABLE = var.supabase_table
       TORONTO_API_URL = var.toronto_api_url
