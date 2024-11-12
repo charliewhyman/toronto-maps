@@ -211,12 +211,3 @@ resource "aws_s3_bucket_notification" "data_bucket_notification" {
 
   depends_on = [aws_lambda_permission.allow_s3_trigger]
 }
-
-# Grant S3 permission to invoke the s3_to_supabase_lambda function
-resource "aws_lambda_permission" "allow_s3_trigger" {
-  statement_id  = "AllowExecutionFromS3"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.s3_to_supabase_lambda.function_name
-  principal     = "s3.amazonaws.com"
-  source_arn    = aws_s3_bucket.data_bucket.arn
-}
