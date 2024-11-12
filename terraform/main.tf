@@ -188,3 +188,35 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.weekly_trigger.arn
 }
+
+# Grant S3 permission to invoke the s3_to_supabase_lambda function
+resource "aws_lambda_permission" "allow_s3_trigger" {
+  statement_id  = "AllowExecutionFromS3"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.s3_to_supabase_lambda.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.data_bucket.arn
+}
+
+# S3 bucket event notification to trigger s3_to_supabase_lambda on new file upload to specific folder
+resource "aws_s3_bucket_notification" "data_bucket_notification" {
+  bucket = aws_s3_bucket.data_bucket.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.s3_to_supabase_lambda.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "traffic-volumes-at-intersections-for-all-modes/"  # Only trigger for files in this folder
+    filter_suffix       = ".csv"                                             # Optional: Limit to CSV files
+  }
+
+  depends_on = [aws_lambda_permission.allow_s3_trigger]
+}
+
+# Grant S3 permission to invoke the s3_to_supabase_lambda function
+resource "aws_lambda_permission" "allow_s3_trigger" {
+  statement_id  = "AllowExecutionFromS3"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.s3_to_supabase_lambda.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.data_bucket.arn
+}
