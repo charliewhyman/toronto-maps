@@ -38,6 +38,9 @@ def handler(event, context):
     if response.status_code == 200:
         existing_ids = {record['id'] for record in response.json()}
 
+    else:
+        print("Fetching existing IDs response:", response.status_code, response.text)
+    
     # Filter out records that already exist in Supabase
     df_new = df[~df["_id"].isin(existing_ids)]
     if df_new.empty:
