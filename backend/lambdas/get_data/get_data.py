@@ -39,8 +39,8 @@ def handler(event, context):
         }
     
     for resource in package["result"]["resources"]:
-        # Check if the resource is a CSV and new based on its ID
-        if resource["format"].lower() == "csv" and not file_exists_in_s3(resource["id"]):
+        # Only process CSV files that start with "raw-data" and are not already in S3
+        if resource["format"].lower() == "csv" and resource["name"].lower().startswith("raw-data") and not file_exists_in_s3(resource["id"]):
             file_url = resource["url"]
             s3_key = f"{s3_folder}{resource['id']}.csv"
 
