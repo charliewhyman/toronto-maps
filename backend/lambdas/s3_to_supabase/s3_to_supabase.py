@@ -28,41 +28,36 @@ def handler(event, context):
     csv_data = s3_object['Body'].read()
     df = pd.read_csv(io.BytesIO(csv_data))
 
-    # Identify new records and prepare them for insertion
-    new_data = []
-    for chunk_start in range(0, len(df), 500):  # Chunk the data into 500 rows
-        chunk = df.iloc[chunk_start:chunk_start+500]
-        chunk_records = chunk.to_dict(orient='records')  # Convert the chunk to a list of dictionaries
-        
-        # Process each record in the chunk
-        for record in chunk_records:
-            unique_id = record.get("_id")  # Ensure this is a unique identifier in your dataset
-            if not unique_id:
-                continue
+     # Fetch existing IDs from Supabase to reduce duplicate checks
+    existing_ids = set()
+    response = requests.get(
+        f'{supabase_url}/rest/v1/{supabase_table}',
+        headers=headers,
+        params={'select': 'id'}
+    )
+    if response.status_code == 200:
+        existing_ids = {record['id'] for record in response.json()}
 
-            # Check if the record already exists in Supabase
-            response = requests.get(
-                f'{supabase_url}/rest/v1/{supabase_table}',
-                headers=headers,
-                params={'id': f'eq.{unique_id}'}
-            )
+    # Filter out records that already exist in Supabase
+    df_new = df[~df["_id"].isin(existing_ids)]
+    if df_new.empty:
+        print("No new data to push.")
+        return {'statusCode': 200, 'body': 'No new data to push.'}
 
-            if response.status_code == 200 and len(response.json()) == 0:
-                new_data.append(record)  # Add new records to the list
+    # Prepare new records for insertion in chunks
+    for chunk_start in range(0, len(df_new), 500):  # Chunk size of 500
+        chunk = df_new.iloc[chunk_start:chunk_start+500]
+        chunk_records = chunk.to_dict(orient='records')  # Convert chunk to list of dictionaries
 
-        # Push the chunk of new records to Supabase if there are any
-        if new_data:
-            response = requests.post(
-                f'{supabase_url}/rest/v1/{supabase_table}',
-                headers=headers,
-                json=new_data
-            )
-            if response.status_code == 201:
-                print(f"Chunk with {len(new_data)} records pushed successfully!")
-            else:
-                print(f"Failed to push chunk: {response.status_code} - {response.text}")
-            new_data.clear()  # Clear new data after each chunk push
+        # Push the chunk of new records to Supabase
+        response = requests.post(
+            f'{supabase_url}/rest/v1/{supabase_table}',
+            headers=headers,
+            json=chunk_records
+        )
+        if response.status_code == 201:
+            print(f"Chunk with {len(chunk_records)} records pushed successfully!")
         else:
-            print("No new data to push in this chunk.")
-    
-    return {'statusCode': 200, 'body': 'Success'}
+            print(f"Failed to push chunk: {response.status_code} - {response.text}")
+
+    return {'statusCode': 200, 'body': 'Data pushed successfully'}
