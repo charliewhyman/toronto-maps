@@ -5,6 +5,8 @@ import pandas as pd
 import csv
 import io
 
+chunk_size = 5000
+
 def handler(event, context):
     # Get environment variables for Supabase
     supabase_url = os.getenv('SUPABASE_URL')
@@ -32,7 +34,6 @@ def handler(event, context):
         stream = s3_object['Body']
 
         # Process the CSV file in chunks using CSV reader
-        chunk_size = 5000
         csv_reader = csv.reader(io.TextIOWrapper(stream, encoding='utf-8'))
         
         header = next(csv_reader)  # Read the header row
@@ -48,8 +49,10 @@ def handler(event, context):
                 # Handle missing data (empty values)
                 df_chunk = df_chunk.where(df_chunk.notna(), None) 
 
+                # Convert empty strings to None
+                df_chunk = df_chunk.applymap(lambda x: None if x == "" else x)
                 # Process the chunk
-                process_chunk(df_chunk, supabase_url, supabase_access_token, supabase_table, headers)
+                process_chunk(df_chunk, supabase_url, supabase_table, headers)
                 rows = []  # Clear the rows for the next chunk
     except Exception as e:
         print(f"Error processing file from S3: {e}")
@@ -57,7 +60,7 @@ def handler(event, context):
 
     return {'statusCode': 200, 'body': 'Data processed successfully'}
 
-def process_chunk(df_chunk, supabase_url, supabase_access_token, supabase_table, headers):
+def process_chunk(df_chunk, supabase_url, supabase_table, headers):
     
     # Fetch existing IDs from Supabase
     existing_ids = set()
@@ -78,20 +81,22 @@ def process_chunk(df_chunk, supabase_url, supabase_access_token, supabase_table,
         return {'statusCode': 400, 'body': "Error: '_id' column not found in CSV."}
 
     df_new = df_chunk[~df_chunk["_id"].isin(existing_ids)]
+
     if df_new.empty:
         print("No new data to push.")
         return {'statusCode': 200, 'body': 'No new data to push.'}
 
     # Push data in chunks to Supabase
-    for chunk_start in range(0, len(df_new), 500):
-        chunk = df_new.iloc[chunk_start:chunk_start + 500]
+    for chunk_start in range(0, len(df_new), chunk_size):
+        chunk = df_new.iloc[chunk_start:chunk_start + chunk_size]
         chunk_records = chunk.to_dict(orient='records')
 
         print(f"Pushing chunk with {len(chunk_records)} records")
         response = requests.post(
             f'{supabase_url}/rest/v1/{supabase_table}',
             headers=headers,
-            json=chunk_records
+            json=chunk_records,
+            params={"on_conflict": "_id"} 
         )
         if response.status_code == 201:
             print(f"Chunk with {len(chunk_records)} records pushed successfully!")
